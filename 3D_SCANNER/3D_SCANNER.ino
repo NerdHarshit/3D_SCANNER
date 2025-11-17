@@ -1,6 +1,17 @@
+//libs
+#include "A4988.h"
+#include<Adafruit_VL53L0X.h>
+//flags
+#define SCAN_START "START?"
+#define LAYER_OVER "LAYER_OVER"
+#define ERROR_MSG "ERROR"
+#define COMPLETION "SCAN_OVER"
+
+#define MODE1 "LASER"
+#define MODE2 "CAM"
 
 void setup() {
-  // put your setup code here, to run once:
+  Serial.begin(9600);
 
 }
 

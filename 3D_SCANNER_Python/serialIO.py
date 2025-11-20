@@ -3,32 +3,49 @@ import time
 
 class MY_Serial:
     
-    def __init__(self):
+    def __init__(self,port = "COM5",baudrate = 9600,timeout = 2,reconnect_delays=3):
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
+        self.reconnect_delays = reconnect_delays
+        self.ser = None
+        self.connect()
 
-        ser = serial.Serial(
-          port = "COM5" ,#change later
-          baudrate = 9600,
-          timeout = 2,
-          write_timeout=2
-       )
         self.PY_READY = "PY_READY\n"
         self.NEXTLAYER = "PY_READY_FOR_NEXT_LAYER\n"
         self.ERROR = "ERROR\n"
         self.SCAN_OVER = "SCAN_OVER_ACK\n"
 
-        print("Serial port opened :",self.ser.port)
-        time.sleep(3)
-        
-
-    #function to recieve data point as a string
-    def rxDataPoint(self):
+    def connect(self):
+        while True:
+            try:
+                if self.ser and getattr(self.ser , "is_open",False):
+                    return
+                self.ser = serial.Serial(self.port,self.baudrate,self.timeout,write_timeout=1)
+                time.sleep(2)
+                return
+            
+            except Exception as e:
+                print("Failed to connect to serial port:",e)
+                time.sleep(self.reconnect_delays)
+    
+    def readLine(self):
         try :
-            line = self.ser.readline().decode('utf-8').strip()
-            return line
-        
+            raw = self.ser.readline()
+            if not raw:
+                return ""
+            
+            return raw.decode('utf-8',errors='ignore').strip()
         except Exception as e:
-            return "----"
+            print("Error while reading line from serial:",e)
+            
+            try:
+                self.connect()
+            except Exception:
+                pass
+            return ""
 
+    
     #function to send ready to start scan flag
     def pyStartScan(self):
         try:
@@ -64,4 +81,23 @@ class MY_Serial:
         except Exception as e:
             print("Error while sending error message to arduino:",e)
 
+    def close(self):
+        try:
+            if self.ser and getattr(self.ser,"is_open",False):
+                self.ser.close()
 
+        except Exception as e:
+            pass
+
+
+'''
+older method
+#function to recieve data point as a string
+    def rxDataPoint(self):
+        try :
+            line = self.ser.readline().decode('utf-8').strip()
+            return line
+        
+        except Exception as e:
+            return "----"
+'''

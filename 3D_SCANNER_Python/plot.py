@@ -1,5 +1,71 @@
 import numpy as np
-import open3d as o3d
+import time
+
+def plotter_process(point_queue,control_queue):
+
+    try:
+        import open3d as o3d
+
+    except ImportError as e:
+        print("open3d not available:",e)
+        return
+    
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(window_name = "3D scanner live viee",width=960,height = 720)
+
+    pcd = o3d.geometry.PointCloud()
+    vis.add_geometry(pcd)
+
+    points_np = np.empty((0,3),dtype=float)
+    opt = vis.get_render_option()
+    opt.point_size =2.0
+    opt.background_color = [0,0,0]
+
+    try:
+        while True:
+            try:
+                cmd = control_queue.get_nowait()
+
+            except Exception:
+                cmd = None
+            
+            if cmd == "exit":
+                break
+
+            if cmd == "clear":
+                points_np = np.empty((0,3),dtype=float)
+                pcd.points = o3d.utility.Vector3dVector(points_np)
+                vis.update_geometry(pcd)
+
+            got = False
+            while True:
+                try:
+                    arr = point_queue.get_nowait()
+                    if isinstance(arr,np.ndarray) and arr.size:
+                        points_np = np.vstack((points_np,arr))
+                        got = True
+                    
+                except Exception:
+                    break
+
+                if got:
+                    pcd.points = o3d.utility.Vector3dVector(points_np)
+                    vis.update_geometry(pcd)
+                
+                vis.poll_events()
+                vis.update_renderer()
+                time.sleep(0.01)
+            
+    except KeyboardInterrupt:
+        pass
+
+    finally:
+        vis.destroy_window()
+
+
+
+'''
+older method
 class MY_3D:
 
     def __init__(self,H,D,Theta):
@@ -45,7 +111,7 @@ class MY_3D:
 
         self.layerCount +=1
 
-        return self.layerCount , x ,y ,z
+        return self.layerCount , x ,y ,z'''
 
 
 '''pcd = o3d.io.read_point_cloud("3D_SCANNER_Python\pretty_point_cloud.ply")

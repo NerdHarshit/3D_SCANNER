@@ -1,103 +1,93 @@
+# serialIO.py
 import serial
 import time
 
 class MY_Serial:
-    
-    def __init__(self,port = "COM5",baudrate = 9600,timeout = 2,reconnect_delays=3):
+    def __init__(self, port="COM5", baudrate=9600, timeout=2, reconnect_delay=3):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
-        self.reconnect_delays = reconnect_delays
+        self.reconnect_delay = reconnect_delay
         self.ser = None
         self.connect()
 
+        # protocol strings we send
         self.PY_READY = "PY_READY\n"
-        self.NEXTLAYER = "PY_READY_FOR_NEXT_LAYER\n"
+        self.NEXT_LAYER = "PY_READY_FOR_NEXT_LAYER\n"
+        self.SCAN_OVER_ACK = "SCAN_OVER_ACK\n"
         self.ERROR = "ERROR\n"
-        self.SCAN_OVER = "SCAN_OVER_ACK\n"
 
     def connect(self):
+        """Try to open serial repeatedly until success (or exception raised externally)."""
         while True:
             try:
-                if self.ser and getattr(self.ser , "is_open",False):
+                if self.ser and getattr(self.ser, "is_open", False):
                     return
-                self.ser = serial.Serial(self.port,self.baudrate,self.timeout,write_timeout=1)
+                self.ser = serial.Serial(port=self.port,
+                                         baudrate=self.baudrate,
+                                         timeout=self.timeout,
+                                         write_timeout=1)
+                # allow Arduino auto-reset time
                 time.sleep(2)
                 return
-            
             except Exception as e:
-                print("Failed to connect to serial port:",e)
-                time.sleep(self.reconnect_delays)
-    
-    def readLine(self):
-        try :
+                print(f"[serialIO] connect failed: {e}. Retrying in {self.reconnect_delay}s")
+                time.sleep(self.reconnect_delay)
+
+    def readline(self):
+        """Safe readline: returns decoded stripped string or '' on no data."""
+        try:
             raw = self.ser.readline()
             if not raw:
                 return ""
-            
-            return raw.decode('utf-8',errors='ignore').strip()
+            return raw.decode("utf-8", errors="ignore").strip()
         except Exception as e:
-            print("Error while reading line from serial:",e)
-            
+            print("[serialIO] readline error:", e)
+            # attempt reconnect
             try:
                 self.connect()
             except Exception:
                 pass
             return ""
 
-    
-    #function to send ready to start scan flag
+    # methods to send flags
     def pyStartScan(self):
         try:
-            self.ser.write(self.PY_READY.encode('utf-8'))
-            print("Sent Ready message to arduino")
+            self.ser.write(self.PY_READY.encode())
+            print("→ Sent:", self.PY_READY.strip())
             return True
-        
         except Exception as e:
-            print("Error while sending start scan message to arduino:",e)
+            print("[serialIO] pyStartScan write error:", e)
             return False
 
     def startNextLayer(self):
-        try :
-            self.ser.write(self.NEXTLAYER.encode('utf-8'))
-            print("Sent next layer start message to arduino")
-        
+        try:
+            self.ser.write(self.NEXT_LAYER.encode())
+            print("→ Sent:", self.NEXT_LAYER.strip())
+            return True
         except Exception as e:
-            print("Error while sending next layer start message to arduino:",e)
+            print("[serialIO] startNextLayer write error:", e)
+            return False
 
     def scanOverAck(self):
-        try :
-            self.ser.write(self.scanOverAck.encode('utf-8'))
-            print("Sent scan over message to arduino")
-        
+        try:
+            self.ser.write(self.SCAN_OVER_ACK.encode())
+            print("→ Sent:", self.SCAN_OVER_ACK.strip())
+            return True
         except Exception as e:
-            print("Error while sending scan over ack message to arduino:",e)
+            print("[serialIO] scanOverAck write error:", e)
+            return False
 
-    def errorMsg(self):
-        try :
-            self.ser.write(self.errorMsg.encode('utf-8'))
-            print("Sent error message to arduino")
-        
-        except Exception as e:
-            print("Error while sending error message to arduino:",e)
+    def send_error(self):
+        try:
+            self.ser.write(self.ERROR.encode())
+            return True
+        except Exception:
+            return False
 
     def close(self):
         try:
-            if self.ser and getattr(self.ser,"is_open",False):
+            if self.ser and getattr(self.ser, "is_open", False):
                 self.ser.close()
-
-        except Exception as e:
+        except Exception:
             pass
-
-
-'''
-older method
-#function to recieve data point as a string
-    def rxDataPoint(self):
-        try :
-            line = self.ser.readline().decode('utf-8').strip()
-            return line
-        
-        except Exception as e:
-            return "----"
-'''
